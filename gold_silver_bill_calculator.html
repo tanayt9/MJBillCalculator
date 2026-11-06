@@ -27,7 +27,8 @@ button{border:0;border-radius:8px;padding:10px 14px;font-weight:700;font-size:14
 .footer-note{font-size:12px;color:var(--muted);margin-top:12px}
 @media(max-width:700px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rates{grid-template-columns:1fr 1fr}}
 @media(max-width:480px){.grid,.rates,.charge-row{grid-template-columns:1fr 1fr}.panel{padding:14px}.item{padding:12px}header{padding:20px 16px}}
-@media print{body{background:#fff}.no-print,header p,.footer-note{display:none!important}header{background:#fff;color:#111;padding:8px 0}main{padding:8px 0}.panel,.summary{box-shadow:none;break-inside:avoid}.summary{background:#fff;color:#111;border:1px solid #bbb}.calc-row{border-color:#ddd}.calc-row.tax,.summary small{color:#444}.calc-row.total{color:#111}.item{break-inside:avoid}input,select{border:0;padding:2px 0;appearance:none}.remove{display:none}}
+@media print{body{background:#fff}header,.panel,.no-print,.footer-note{display:none!important}main{padding:0}.summary{background:#fff;color:#111;border:1px solid #bbb;box-shadow:none}.calc-row{border-color:#ddd}.calc-row.tax,.summary small{color:#444}.calc-row.total{color:#111}}
+.hidden{display:none}
 </style>
 </head>
 <body>
@@ -71,6 +72,7 @@ const $ = id => document.getElementById(id);
 const money = n => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format(Number.isFinite(n)?n:0);
 const STORAGE_KEY='goldSilverBillCalculatorRates_v1';
 let itemCount=0;
+const ITEM_TYPES=['Ring','Chain','Necklace','Mangalsutra','Bangle','Bracelet','Earrings','Pendant','Nose pin','Anklet (Payal)','Toe ring (Bichhiya)','Coin','Bar / Biscuit','Idol','Silverware / Utensil','Other (type name)'];
 
 function saveRates(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify({gold:$('goldRate').value,silver:$('silverRate').value}));
@@ -91,7 +93,7 @@ function addItem(){
   el.innerHTML=`
     <div class="item-head"><strong>Item ${id}</strong><button type="button" class="remove no-print" aria-label="Remove item">Remove</button></div>
     <div class="grid">
-      <div class="field"><label>Item name</label><input class="itemName" value="${id===1?'Gold ring':'Jewellery item'}" placeholder="e.g. Gold ring"></div>
+      <div class="field"><label>Item name</label><select class="itemType">${ITEM_TYPES.map(t=>`<option>${t}</option>`).join('')}</select><input class="itemName hidden" placeholder="Type item name"></div>
       <div class="field"><label>Metal</label><select class="metal"><option value="gold">Gold</option><option value="silver">Silver</option></select></div>
       <div class="field"><label>Weight (grams)</label><input class="weight" type="number" min="0" step="0.001" placeholder="e.g. 2"></div>
       <div class="field"><label>Rate (₹/gram)</label><input class="rate" type="number" readonly value="0"></div>
@@ -106,6 +108,11 @@ function addItem(){
     </div>`;
   $('items').appendChild(el);
   el.querySelectorAll('input,select').forEach(control=>control.addEventListener('input',calculate));
+  el.querySelector('.itemType').addEventListener('change',e=>{
+    const other=e.target.value.startsWith('Other');
+    el.querySelector('.itemName').classList.toggle('hidden',!other);
+    if(other)el.querySelector('.itemName').focus();
+  });
   el.querySelector('.remove').addEventListener('click',()=>{el.remove();calculate();});
   el.querySelector('.makingType').addEventListener('change',()=>{
     el.querySelector('.makingLabel').textContent=el.querySelector('.makingType').value==='weight'?'Making charge (₹/gram)':'Making charge (₹)';
@@ -132,7 +139,8 @@ function calculate(){
     el.querySelector('.metalValue').value=metalValue.toFixed(2);
     el.querySelector('.itemSubtotal').value=itemSubtotal.toFixed(2);
     subtotal+=itemSubtotal;
-    const name=el.querySelector('.itemName').value.trim()||`Item ${index+1}`;
+    const type=el.querySelector('.itemType').value;
+    const name=(type.startsWith('Other')?el.querySelector('.itemName').value.trim():type)||`Item ${index+1}`;
     details.push(`<div style="padding:9px 0;border-bottom:1px solid #ffffff20"><strong>${escapeHtml(name)}</strong><div class="calc-row"><span>${metal==='gold'?'Gold':'Silver'} · ${weight.toFixed(3)} g × ${money(rate)}</span><span>${money(metalValue)}</span></div><div class="calc-row"><span>Making charge</span><span>${money(making)}</span></div><div class="calc-row"><span>Hallmark charge</span><span>${money(hallmark)}</span></div><div class="calc-row"><span>Additional charge</span><span>${money(additional)}</span></div></div>`);
   });
   const cgst=subtotal*0.015,sgst=subtotal*0.015,gst=cgst+sgst,total=subtotal+gst;
