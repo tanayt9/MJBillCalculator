@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gold & Silver Bill Calculator</title>
+<style>
+:root{--ink:#20242b;--muted:#687180;--line:#e4e7ec;--gold:#9a6b12;--gold-bg:#fff8e8;--bg:#f5f6f8;--green:#18794e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Arial,Helvetica,sans-serif}
+header{background:#20242b;color:#fff;padding:24px 18px}header .wrap,main{max-width:1050px;margin:auto}h1{font-size:25px;margin:0 0 4px}header p{margin:0;color:#d4d8df}
+main{padding:22px 16px 48px}.panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:19px;margin-bottom:17px;box-shadow:0 2px 8px #1d29390a}
+h2{font-size:18px;margin:0 0 14px}.sub{color:var(--muted);font-size:13px;margin:-8px 0 14px}
+.rates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:13px;font-weight:700;color:#444c58}
+input,select{width:100%;border:1px solid #cfd5dd;border-radius:8px;padding:10px 11px;font:inherit;background:#fff;color:var(--ink);min-width:0}
+input:focus,select:focus{outline:2px solid #d9b96e;outline-offset:1px}
+.hint{font-size:12px;color:var(--muted)}.item{border:1px solid var(--line);border-radius:11px;padding:16px;margin-top:12px;background:#fff}
+.item-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}.item-head strong{font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.charge-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+button{border:0;border-radius:8px;padding:10px 14px;font-weight:700;font-size:14px;cursor:pointer}
+.primary{background:#252a32;color:white}.secondary{background:var(--gold-bg);color:#76510c;border:1px solid #ead8ad}.remove{background:#fff0f0;color:#a52c2c;padding:7px 10px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}
+.summary{background:#20242b;color:white;border-radius:14px;padding:20px}
+.summary h2{margin-bottom:15px}.calc-row{display:flex;justify-content:space-between;gap:18px;padding:7px 0;border-bottom:1px solid #ffffff20}.calc-row span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.calc-row.total{font-size:22px;font-weight:800;border:0;padding-top:15px;color:#ffe3a1}.calc-row.tax{color:#d6dbe2}
+.summary small{color:#c6cbd3}.empty{color:var(--muted);padding:12px 0}
+.footer-note{font-size:12px;color:var(--muted);margin-top:12px}
+@media(max-width:700px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rates{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.grid,.rates,.charge-row{grid-template-columns:1fr 1fr}.panel{padding:14px}.item{padding:12px}header{padding:20px 16px}}
+@media print{body{background:#fff}.no-print,header p,.footer-note{display:none!important}header{background:#fff;color:#111;padding:8px 0}main{padding:8px 0}.panel,.summary{box-shadow:none;break-inside:avoid}.summary{background:#fff;color:#111;border:1px solid #bbb}.calc-row{border-color:#ddd}.calc-row.tax,.summary small{color:#444}.calc-row.total{color:#111}.item{break-inside:avoid}input,select{border:0;padding:2px 0;appearance:none}.remove{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>Gold & Silver Bill Calculator</h1><p>Enter your daily metal rates, add jewellery items and calculate the bill with GST.</p></div></header>
+<main>
+<section class="panel">
+  <h2>Today's metal rates</h2>
+  <p class="sub">Rates are saved automatically in this browser on this device.</p>
+  <div class="rates">
+    <div class="field"><label for="goldRate">Gold rate (₹ per gram)</label><input id="goldRate" type="number" min="0" step="0.01" placeholder="e.g. 7200"></div>
+    <div class="field"><label for="silverRate">Silver rate (₹ per gram)</label><input id="silverRate" type="number" min="0" step="0.01" placeholder="e.g. 90"></div>
+  </div>
+  <div class="footer-note">Change a rate whenever needed. The bill recalculates immediately.</div>
+</section>
+
+<section class="panel">
+  <h2>Jewellery items</h2>
+  <p class="sub">Each item can have its own making charge, hallmark charge and additional charge.</p>
+  <div id="items"></div>
+  <div class="actions no-print"><button class="secondary" id="addItem">＋ Add another item</button></div>
+</section>
+
+<section class="summary" aria-live="polite">
+  <h2>Bill summary</h2>
+  <div id="breakdown"><div class="empty">Add an item and enter its weight to see the bill calculation.</div></div>
+  <div class="calc-row"><span>Subtotal (before GST)</span><strong id="subtotal">₹0.00</strong></div>
+  <div class="calc-row tax"><span>CGST (1.5%)</span><span id="cgst">₹0.00</span></div>
+  <div class="calc-row tax"><span>SGST (1.5%)</span><span id="sgst">₹0.00</span></div>
+  <div class="calc-row"><span>Total GST (3%)</span><span id="gst">₹0.00</span></div>
+  <div class="calc-row total"><span>Total bill amount</span><span id="grandTotal">₹0.00</span></div>
+  <small>GST is calculated on the metal value + making charge + hallmark charge + additional charge.</small>
+</section>
+<div class="actions no-print">
+  <button class="primary" id="printBtn">Print bill</button>
+  <button class="secondary" id="clearBtn">Clear bill items</button>
+</div>
+<p class="footer-note">This calculator stores rates only in this browser's local storage. Clearing browser data or using another browser/device will not carry the saved rates over. Please verify applicable tax treatment and rounding before issuing a customer invoice.</p>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const money = n => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format(Number.isFinite(n)?n:0);
+const STORAGE_KEY='goldSilverBillCalculatorRates_v1';
+let itemCount=0;
+
+function saveRates(){
+  localStorage.setItem(STORAGE_KEY,JSON.stringify({gold:$('goldRate').value,silver:$('silverRate').value}));
+  calculate();
+}
+function loadRates(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
+    $('goldRate').value=saved.gold??'';
+    $('silverRate').value=saved.silver??'';
+  }catch(e){}
+}
+function addItem(){
+  itemCount++;
+  const id=itemCount;
+  const el=document.createElement('div');
+  el.className='item';el.dataset.itemId=id;
+  el.innerHTML=`
+    <div class="item-head"><strong>Item ${id}</strong><button type="button" class="remove no-print" aria-label="Remove item">Remove</button></div>
+    <div class="grid">
+      <div class="field"><label>Item name</label><input class="itemName" value="${id===1?'Gold ring':'Jewellery item'}" placeholder="e.g. Gold ring"></div>
+      <div class="field"><label>Metal</label><select class="metal"><option value="gold">Gold</option><option value="silver">Silver</option></select></div>
+      <div class="field"><label>Weight (grams)</label><input class="weight" type="number" min="0" step="0.001" placeholder="e.g. 2"></div>
+      <div class="field"><label>Rate (₹/gram)</label><input class="rate" type="number" readonly value="0"></div>
+      <div class="field"><label>Metal value (₹)</label><input class="metalValue" readonly value="0.00"></div>
+      <div class="field"><label>Making charge type</label><select class="makingType"><option value="fixed">Fixed amount (₹)</option><option value="weight">Per gram (₹/gram)</option></select></div>
+    </div>
+    <div class="charge-row">
+      <div class="field"><label class="makingLabel">Making charge (₹)</label><input class="makingInput" type="number" min="0" step="0.01" placeholder="Enter amount"></div>
+      <div class="field"><label>Hallmark charge (₹)</label><input class="hallmark" type="number" min="0" step="0.01" value="0"></div>
+      <div class="field"><label>Additional charge (₹)</label><input class="additional" type="number" min="0" step="0.01" value="0"></div>
+      <div class="field"><label>Item total before GST (₹)</label><input class="itemSubtotal" readonly value="0.00"></div>
+    </div>`;
+  $('items').appendChild(el);
+  el.querySelectorAll('input,select').forEach(control=>control.addEventListener('input',calculate));
+  el.querySelector('.remove').addEventListener('click',()=>{el.remove();calculate();});
+  el.querySelector('.makingType').addEventListener('change',()=>{
+    el.querySelector('.makingLabel').textContent=el.querySelector('.makingType').value==='weight'?'Making charge (₹/gram)':'Making charge (₹)';
+    calculate();
+  });
+  calculate();
+}
+function calculate(){
+  const gold=Number($('goldRate').value)||0;
+  const silver=Number($('silverRate').value)||0;
+  let subtotal=0;
+  const details=[];
+  document.querySelectorAll('.item').forEach((el,index)=>{
+    const metal=el.querySelector('.metal').value;
+    const weight=Math.max(0,Number(el.querySelector('.weight').value)||0);
+    const rate=metal==='gold'?gold:silver;
+    const metalValue=weight*rate;
+    const makingInput=Math.max(0,Number(el.querySelector('.makingInput').value)||0);
+    const making=el.querySelector('.makingType').value==='weight'?makingInput*weight:makingInput;
+    const hallmark=Math.max(0,Number(el.querySelector('.hallmark').value)||0);
+    const additional=Math.max(0,Number(el.querySelector('.additional').value)||0);
+    const itemSubtotal=metalValue+making+hallmark+additional;
+    el.querySelector('.rate').value=rate.toFixed(2);
+    el.querySelector('.metalValue').value=metalValue.toFixed(2);
+    el.querySelector('.itemSubtotal').value=itemSubtotal.toFixed(2);
+    subtotal+=itemSubtotal;
+    const name=el.querySelector('.itemName').value.trim()||`Item ${index+1}`;
+    details.push(`<div style="padding:9px 0;border-bottom:1px solid #ffffff20"><strong>${escapeHtml(name)}</strong><div class="calc-row"><span>${metal==='gold'?'Gold':'Silver'} · ${weight.toFixed(3)} g × ${money(rate)}</span><span>${money(metalValue)}</span></div><div class="calc-row"><span>Making charge</span><span>${money(making)}</span></div><div class="calc-row"><span>Hallmark charge</span><span>${money(hallmark)}</span></div><div class="calc-row"><span>Additional charge</span><span>${money(additional)}</span></div></div>`);
+  });
+  const cgst=subtotal*0.015,sgst=subtotal*0.015,gst=cgst+sgst,total=subtotal+gst;
+  $('breakdown').innerHTML=details.length?details.join(''):'<div class="empty">Add an item and enter its weight to see the bill calculation.</div>';
+  $('subtotal').textContent=money(subtotal);$('cgst').textContent=money(cgst);$('sgst').textContent=money(sgst);$('gst').textContent=money(gst);$('grandTotal').textContent=money(total);
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+$('goldRate').addEventListener('input',saveRates);
+$('silverRate').addEventListener('input',saveRates);
+$('addItem').addEventListener('click',addItem);
+$('printBtn').addEventListener('click',()=>window.print());
+$('clearBtn').addEventListener('click',()=>{if(confirm('Remove all items from this bill?')){$('items').innerHTML='';itemCount=0;calculate();addItem();}});
+loadRates();addItem();
+</script>
+</body>
+</html>
